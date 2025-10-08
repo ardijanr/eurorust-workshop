@@ -45,6 +45,7 @@
             triton-llvm
             opencv
           ];
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
 
           shellHook = ''
             mkdir -p ~/.rust-rover/toolchain
