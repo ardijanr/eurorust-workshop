@@ -1,14 +1,22 @@
 #![allow(unused_variables)]
 #![allow(dead_code)]
 use anyhow::Result;
-use opencv::{self, core::Mat, highgui::imshow, imgcodecs::imdecode, imgproc::COLOR_BGR2RGB};
+use opencv::{
+    self,
+    core::Mat,
+    highgui::{self, imshow, named_window, WINDOW_AUTOSIZE},
+    imgcodecs::imdecode,
+    imgproc::COLOR_BGR2RGB,
+};
 use reqwest::blocking::Client;
 
 fn main() -> Result<()> {
     let i = read_identifiers()?;
     println!("Hello, world!: {i:?}");
     let image_sample = get_cam_image()?;
+    let window = named_window("hello", WINDOW_AUTOSIZE)?;
     imshow("hello", &image_sample)?;
+    highgui::wait_key(10000)?;
 
     Ok(())
 }

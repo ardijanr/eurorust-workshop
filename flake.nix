@@ -1,35 +1,30 @@
 {
-  description = "Rust environment";
-
   inputs = {
-    # nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    rust-overlay.url = "github:oxalica/rust-overlay";
-    flake-utils = {
-      url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+
+    crane = {
+      url = "github:ipetkov/crane";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    flake-utils.url = "github:numtide/flake-utils";
+
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-utils.follows = "flake-utils";
+      };
     };
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
+  outputs = { self, nixpkgs, crane, flake-utils, rust-overlay, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ (import rust-overlay) ];
-        };
+        
+        opencvGtk = pkgs.opencv.override (old : { enableGtk2 = true; });
 
-        rustToolchain = pkgs.rust-bin.stable."1.89.0".default.override {
-          extensions = [ "rust-src" "clippy" "rustfmt" ];
-        };
-      in {
-        devShell = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [
-            rustToolchain
-            gcc
-            arduino-cli
-          ];
-
-          buildInputs = with pkgs; [
+        runtimeDeps= with pkgs; [
             openssl
             glib.dev
             pkg-config
@@ -43,24 +38,49 @@
             xorg.libXrandr
             rust-analyzer
             triton-llvm
-            opencv
-          ];
-          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+            opencvGtk
+            gtk2-x11
+        ];
 
-          shellHook = ''
-            mkdir -p ~/.rust-rover/toolchain
+        libPath = lib.makeLibraryPath runtimeDeps ;
+        
 
-            ln -sfn ${rustToolchain}/lib ~/.rust-rover/toolchain
-            ln -sfn ${rustToolchain}/bin ~/.rust-rover/toolchain
-
-            export RUST_SRC_PATH="$HOME/.cargo/bin/rust-src/library"
-            echo "RUST_SRC_PATH set to $RUST_SRC_PATH"
-          '';
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ (import rust-overlay) ];
         };
-      }
-    );
+
+        inherit (pkgs) lib;
+
+        # src = ./.;
+
+        rustToolchain = pkgs.rust-bin.stable.latest.default;
+
+        # craneLib = (crane.mkLib pkgs).overrideScope (final: prev: {
+        #   rustc = rustToolchain;
+        #   cargo = rustToolchain;
+        #   rustfmt = rustToolchain;
+        # });
+
+        # cargoArtifacts = craneLib.buildDepsOnly {
+        #   inherit src;
+        # };
+
+
+       in {
+
+        devShell = pkgs.mkShell {
+
+
+          buildInputs = with pkgs; [ ] ++ runtimeDeps;
+
+          nativeBuildInputs = with pkgs; [
+            rustToolchain
+          ];
+
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+          LD_LIBRARY_PATH = libPath;
+        };
+      });
 }
-# car 8:
-# TOKEN= 746007
-# CAR_IP = 192.168.0.105
-# CAMERA_IP =  
+
